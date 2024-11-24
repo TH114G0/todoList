@@ -1,8 +1,14 @@
 package br.com.todo.api.controller;
 
 import br.com.todo.api.entity.Todo;
+import br.com.todo.api.exception.TodoNotFoundException;
+import br.com.todo.api.repository.TodoRepository;
 import br.com.todo.api.service.TodoService;
+import jakarta.validation.Valid;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -10,15 +16,18 @@ import java.util.List;
 @RequestMapping("/todos")
 public class TodoController {
 
-    private TodoService todoService;
+    private final TodoService todoService;
+    private final TodoRepository todoRepository;
 
-    public TodoController(TodoService todoService) {
+    public TodoController(TodoService todoService, TodoRepository todoRepository) {
         this.todoService = todoService;
+        this.todoRepository = todoRepository;
     }
 
     @PostMapping()
-    List<Todo> create(@RequestBody Todo todo) {
-        return todoService.create(todo);
+    ResponseEntity<Todo> create(@RequestBody @Valid Todo todo) {
+        Todo createdTodo = todoService.create(todo);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdTodo);
     }
 
     @GetMapping
@@ -26,14 +35,24 @@ public class TodoController {
         return todoService.list();
     }
 
-    @PutMapping
-    List<Todo> update(@RequestBody Todo todo) {
-        return todoService.update(todo);
+    @PutMapping("{id}")
+    ResponseEntity<Todo> update(@PathVariable("id") Long id, @RequestBody @Valid Todo todo) {
+        try {
+            todo.setId(id);
+            Todo updateTodo = todoService.update(todo);
+            return ResponseEntity.ok(updateTodo);
+        } catch (TodoNotFoundException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        }
     }
 
     @DeleteMapping("{id}")
-    List<Todo> delete(@PathVariable("id") Long id) {
-        return todoService.delete(id);
+    ResponseEntity<Object> delete(@PathVariable("id") Long id) {
+        try {
+            todoService.delete(id);
+            return ResponseEntity.noContent().build();
+        } catch (TodoNotFoundException e) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, e.getMessage(), e);
+        }
     }
-
 }
